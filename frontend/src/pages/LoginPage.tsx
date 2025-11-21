@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import graphImage from "../assets/GraphImage.png";     // ← correct import
-import "./LoginPage.css";                              // ← correct CSS import
+import "./LoginPage.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -23,7 +22,7 @@ export default function LoginPage() {
 
       {/* LEFT PANEL */}
       <div className="left-panel">
-        <img src={graphImage} alt="Graph" className="graph-img" />
+        <img src="/graphimage.png" alt="Graph" className="graph-img" />
 
         <h1 className="title">HabitFlow:</h1>
         <h1 className="subtitle">
@@ -68,7 +67,7 @@ export default function LoginPage() {
           </button>
 
           <p className="register-text">
-            Don’t have an account? <a href="#">Register</a>
+            Don't have an account? <a href="#">Register</a>
           </p>
         </form>
       </div>

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { clearToken } from "../utils/auth.js";
+import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 
 type Habit = {
@@ -94,6 +96,7 @@ export default function Dashboard() {
   const isEmpty = habits.length === 0;
 
   return (
+    
     <div className="dash-root">
       <header className="dash-topbar">
         <div className="brand">

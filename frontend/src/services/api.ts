@@ -1,87 +1,68 @@
-import type { Habit } from '../types.js';
+// frontend/src/api.ts
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getToken } from "../utils/auth.js";
 
-export interface ApiService {
-  login: (email: string, password: string) => Promise<{ message: string; token?: string }>;
-  register: (email: string, password: string) => Promise<{ message: string; userId?: string }>;
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-  createHabit: (name: string, description: string) => Promise<{ habit: string }>;
-  getHabits: () => Promise<{ habits: Habit[] }>;
-  getHabitById: (id: string) => Promise<{ habit: Habit }>;
-  updateHabit: (id: string, data: {name?: string; description?: string}) => Promise<{ message: string }>;
-  recordHabitCompletion: (id: string) => Promise<{ message: string }>;
-  deleteHabit: (id: string) => Promise<{ message: string }>;
+/**
+ * ✔ fetchWithAuth
+ * - returns the raw Response object
+ * - Dashboard will call res.ok, res.json() manually
+ */
+export async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = getToken();
+  const headers = new Headers(options.headers || {});
+  headers.set("Content-Type", "application/json");
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return fetch(API_BASE_URL + url, {
+    ...options,
+    headers,
+  });
 }
 
-export const apiService: ApiService = {
-  login: async (email, password) => {
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-    return response.json();
-  },
+/**
+ * ✔ request()
+ * - wrapper that automatically does JSON + returns parsed data
+ * - Used by login/register flows
+ */
+async function request(url: string, options: any = {}) {
+  const res = await fetchWithAuth(url, options);
+  return res.json();
+}
 
-  register: async (email, password) => {
-    const response = await fetch(`${API_BASE_URL}/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+/**
+ * ✔ api object
+ * - Optional high-level helpers if you prefer these instead of fetchWithAuth
+ */
+export const api = {
+  login: (email: string, password: string) =>
+    request("/api/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
-    });
-    return response.json();
-  },
+    }),
 
-  createHabit: async (name, description) => {
-    const response = await fetch(`${API_BASE_URL}/habits`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+  register: (email: string, password: string) =>
+    request("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  getHabits: () => request("/api/habits", { method: "GET" }),
+
+  createHabit: (name: string, description: string) =>
+    request("/api/habits", {
+      method: "POST",
       body: JSON.stringify({ name, description }),
-    });
-    return response.json();
-  },
+    }),
 
-  getHabits: async () => {
-    const response = await fetch(`${API_BASE_URL}/habits`);
-    return response.json();
-  },
+  deleteHabit: (id: string) =>
+    request(`/api/habits/${id}`, { method: "DELETE" }),
 
-  getHabitById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/habits/${id}`);
-    return response.json();
-  },
-
-  updateHabit: async (id, data) => {
-    const response = await fetch(`${API_BASE_URL}/habits/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    return response.json();
-  },
-
-  recordHabitCompletion: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/habits/${id}/complete`, {
-      method: 'POST',
-    });
-    return response.json();
-  },
-
-  deleteHabit: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/habits/${id}`, {
-      method: 'DELETE',
-    });
-    return response.json();
-  },
+  recordHabitCompletion: (id: string) =>
+    request(`/api/habits/${id}/complete`, { method: "POST" }),
 };
-
-export default apiService;

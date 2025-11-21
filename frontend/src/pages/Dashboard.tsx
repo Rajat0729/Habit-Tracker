@@ -1,257 +1,459 @@
-import React, { useEffect, useState } from "react";
+// frontend/src/pages/Dashboard.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { clearToken } from "../utils/auth.js";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL, fetchWithAuth } from "../services/api.js";
 
+// Type for habit
 type Habit = {
   id: string;
   name: string;
-  frequency: "Daily" | "Weekly" | "Monthly";
-  timesPerDay: number;       // NEW
-  description?: string;
+  description: string;
   createdAt: string;
-  recent: number[];          // NOW STORING intensity (0–4)
+  timesPerDay: number;
+  frequency: "Daily" | "Weekly" | "Monthly";
+  recent: number[];
+  currentStreak: number;
+  longestStreak: number;
 };
 
 const STORAGE_KEY = "habitflow_habits_v2";
 
 export default function Dashboard() {
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
-  // Modal fields
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Create habit modal fields
+  const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<"Daily" | "Weekly" | "Monthly">("Daily");
   const [timesPerDay, setTimesPerDay] = useState(1);
   const [description, setDescription] = useState("");
 
-  // Load habits
+  // UI State
+  const [viewDays, setViewDays] = useState<7 | 28>(7);
+  const [sortMode, setSortMode] = useState<"name" | "current" | "longest">("name");
+
+  // Attempts to load backend habits first, fallback → localStorage
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      try {
-        setHabits(JSON.parse(raw));
-      } catch {
-        setHabits([]);
-      }
-    }
+    loadHabits();
   }, []);
 
-  // Save habits
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
   }, [habits]);
 
-  function openModal() {
-    setName("");
-    setFrequency("Daily");
-    setTimesPerDay(1);
-    setDescription("");
-    setShowModal(true);
+  // Normalize habit object from server
+  const normalizeHabit = (raw: any): Habit => ({
+    id: raw.id || raw._id,
+    name: raw.name,
+    description: raw.description || "",
+    createdAt: raw.createdAt,
+    timesPerDay: raw.timesPerDay || 1,
+    frequency: raw.frequency || "Daily",
+    recent: raw.recent || Array(28).fill(0),
+    currentStreak: raw.currentStreak || 0,
+    longestStreak: raw.longestStreak || 0,
+  });
+
+  async function loadHabits() {
+    setLoading(true);
+
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits`);
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      const list = data.habits.map(normalizeHabit);
+      setHabits(list);
+      setLoading(false);
+      return;
+    } catch (err) {
+      // fallback: local storage
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          setHabits(JSON.parse(raw));
+        } catch {
+          setHabits([]);
+        }
+      }
+      setLoading(false);
+    }
   }
 
-  function closeModal() {
-    setShowModal(false);
-  }
-
-  function createHabit(e?: React.FormEvent) {
+  // Create habit
+  async function createHabit(e?: React.FormEvent) {
     if (e) e.preventDefault();
-    if (!name.trim()) return alert("Please enter a habit name");
+    if (!name.trim()) return alert("Enter a habit name");
 
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description }),
+      });
+
+      if (res.ok) {
+        await loadHabits();
+        closeCreateModal();
+        return;
+      }
+    } catch {}
+
+    // local fallback
     const newHabit: Habit = {
       id: Date.now().toString(),
-      name: name.trim(),
-      frequency,
+      name,
+      description,
       timesPerDay,
-      description: description.trim(),
+      frequency,
       createdAt: new Date().toISOString(),
-      recent: Array(21).fill(0),        // 0 = not done
+      recent: Array(28).fill(0),
+      currentStreak: 0,
+      longestStreak: 0,
     };
 
-    setHabits((s) => [newHabit, ...s]);
-    setShowModal(false);
+    setHabits((prev) => [newHabit, ...prev]);
+    closeCreateModal();
   }
 
-  function markToday(id: string) {
+  function closeCreateModal() {
+    setShowCreate(false);
+    setName("");
+    setDescription("");
+    setTimesPerDay(1);
+    setFrequency("Daily");
+  }
+
+  // Toggle Today
+  async function toggleToday(id: string) {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits/${id}/complete`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const j = await res.json();
+        const updated = normalizeHabit(j.habit);
+        setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
+        return;
+      }
+    } catch (err) {}
+
+    // Local fallback toggle
     setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id !== id) return h;
+    prev.map((h) => {
+    if (h.id !== id) return h;
 
-        const newArr = [...h.recent];
-        let todayCount = newArr[0] ?? 0;
+    const next = [...(h.recent ?? Array(28).fill(0))];
+    const todayVal = next[0] ?? 0;
+    next[0] = todayVal > 0 ? 0 : 1;
 
-        todayCount = Math.min(todayCount + 1, 4); // cap at 4 (exceeded)
-
-        newArr[0] = todayCount;
-        return { ...h, recent: newArr };
-      })
-    );
+    return { ...h, recent: next };
+    })
+  );
   }
 
-  function deleteHabit(id: string) {
+  // Delete habit
+  async function deleteHabit(id: string) {
     if (!confirm("Delete this habit?")) return;
-    setHabits((p) => p.filter((h) => h.id !== id));
+
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits/${id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        loadHabits();
+        return;
+      }
+    } catch {}
+
+    setHabits((prev) => prev.filter((h) => h.id !== id));
   }
 
-  const isEmpty = habits.length === 0;
+  // Sorting
+  const displayedHabits = useMemo(() => {
+    let arr = [...habits];
 
+    if (sortMode === "name") {
+      arr.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortMode === "current") {
+      arr.sort((a, b) => b.currentStreak - a.currentStreak);
+    } else {
+      arr.sort((a, b) => b.longestStreak - a.longestStreak);
+    }
+
+    return arr;
+  }, [habits, sortMode]);
+
+  // Progress calculation
+  const progress = (habit: Habit, days: number) => {
+    const slice = habit.recent.slice(0, days);
+    const done = slice.filter((x) => x > 0).length;
+    return Math.round((done / days) * 100);
+  };
+
+  function logout() {
+    clearToken();
+    navigate("/login");
+  }
+
+  // UI ──────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-(--bg) text-[#e9eef1]">
-      <header className="h-[58px] flex items-center px-6 border-b border-white/5 bg-black/20">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 bg-linear-to-b from-[#0af575] to-[#0f8f4b] rounded-sm" />
-          <div className="text-[16px] font-bold">HabitFlow</div>
-        </div>
-        <div className="ml-auto">
-          <div className="username">John Doe</div>
+    <div style={{ minHeight: "100vh", background: "#0c0e10", color: "#fff" }}>
+      {/* Header */}
+      <header
+        style={{
+          height: 60,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 24px",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 700 }}>HabitFlow</div>
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>
+          <select
+            value={viewDays}
+            onChange={(e) => setViewDays(Number(e.target.value) as 7 | 28)}
+            style={{ padding: 6, borderRadius: 6 }}
+          >
+            <option value={7}>Weekly</option>
+            <option value={28}>Monthly</option>
+          </select>
+
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as any)}
+            style={{ padding: 6, borderRadius: 6 }}
+          >
+            <option value="name">Name (A–Z)</option>
+            <option value="current">Current Streak</option>
+            <option value="longest">Longest Streak</option>
+          </select>
+
+          <button
+            onClick={logout}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 6,
+              background: "transparent",
+              border: "1px solid #333",
+              color: "#ccc",
+            }}
+          >
+            Logout
+          </button>
         </div>
       </header>
 
-      <main className="p-7 max-w-[1100px] mx-auto">
-        <div className="flex items-center gap-3">
-          <button
-            className="py-2.5 px-3.5 rounded-lg font-semibold cursor-pointer bg-linear-to-br from-[#0af575] to-[#0f8f4b] text-[#04150d]"
-            onClick={openModal}
-          >
-            + Add Habit
-          </button>
+      {/* Main */}
+      <main style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
+        <button
+          onClick={() => setShowCreate(true)}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 8,
+            fontWeight: 700,
+            background: "#22c55e",
+            color: "#04150d",
+            marginBottom: 20,
+          }}
+        >
+          + Add Habit
+        </button>
 
-          <div className="flex-1" />
-
-          <div className="px-3.5 py-2.5 rounded-lg bg-white/5">Sort by ▾</div>
-        </div>
-
-        {isEmpty ? (
-          <div className="text-center mt-20">
-            <h2>Welcome to HabitFlow</h2>
-            <p className="text-[20px] mt-2 text-[#bccdd1]">
-              Start small. Stay consistent. Build a better you.
-            </p>
-            <p className="text-sm text-[#9fb3b7]">This message disappears when you add your first habit.</p>
-          </div>
+        {loading ? (
+          <p>Loading...</p>
+        ) : displayedHabits.length === 0 ? (
+          <p style={{ marginTop: 60, textAlign: "center", color: "#9fb3b7" }}>
+            No habits yet — add your first one!
+          </p>
         ) : (
-          <div className="flex flex-col gap-3.5 mt-6">
-            {habits.map((h) => (
-              <div key={h.id} className="flex items-center gap-4 bg-white/5 rounded-xl p-5 shadow-lg">
-                <div className="w-[260px]">
-                  <div className="text-[18px] font-bold">{h.name}</div>
-                  <div className="text-[13px] text-[#9fb3b7] mt-1">
-                    Current Streak:{" "}
-                    {(() => {
-                      let cnt = 0;
-                      for (let i = 0; i < h.recent.length; i++) {
-                        const v = h.recent[i] ?? 0;
-                        if (v > 0) cnt++;
-                        else break;
-                      }
-                      return cnt;
-                    })()}{" "}
-                    🔥
-                  </div>
-                  <div className="text-[13px] text-[#9fb3b7] mt-1">Goal: {h.timesPerDay} times/day</div>
+          displayedHabits.map((h) => (
+            <div
+              key={h.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: 16,
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.05)",
+                marginBottom: 14,
+              }}
+            >
+              {/* Details */}
+              <div style={{ width: 260 }}>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{h.name}</div>
+                <div style={{ marginTop: 6, color: "#9fb3b7" }}>
+                  Current Streak: {h.currentStreak} 🔥
                 </div>
-
-                {/* HEATMAP */}
-                <div className="flex gap-1.5 flex-wrap w-[320px]">
-                  {h.recent.map((v, i) => (
-                    <div
-                      key={i}
-                      className={
-                        `w-4 h-4 rounded-md ` +
-                        (v === 0
-                          ? "bg-[#1a1d21] border border-black"
-                          : v === 1
-                          ? "bg-[#4ade80]"
-                          : v === 2
-                          ? "bg-[#22c55e]"
-                          : v === 3
-                          ? "bg-[#16a34a]"
-                          : "bg-[#0d8c3d]")
-                      }
-                    />
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-2 ml-auto">
-                  <button
-                    className="py-1.5 px-2.5 text-sm rounded-lg font-semibold bg-white/5"
-                    onClick={() => markToday(h.id)}
-                  >
-                    Mark Today
-                  </button>
-                  <button
-                    className="py-1.5 px-2.5 text-sm rounded-lg font-semibold bg-transparent border border-white/10 text-[#9fb3b7]"
-                    onClick={() => deleteHabit(h.id)}
-                  >
-                    Delete
-                  </button>
+                <div style={{ marginTop: 6, color: "#9fb3b7" }}>
+                  Progress: <strong>{progress(h, viewDays)}%</strong>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Heatmap */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  width: viewDays === 7 ? 200 : 330,
+                }}
+              >
+                {h.recent.slice(0, viewDays).map((v, i) => {
+                  const bg =
+                    v === 0
+                      ? "#1a1d21"
+                      : v === 1
+                      ? "#4ade80"
+                      : v === 2
+                      ? "#22c55e"
+                      : v === 3
+                      ? "#16a34a"
+                      : "#0d8c3d";
+
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        width: viewDays === 7 ? 24 : 12,
+                        height: viewDays === 7 ? 24 : 12,
+                        borderRadius: 4,
+                        background: bg,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Buttons */}
+              <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => toggleToday(h.id)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.05)",
+                    color: "#e8eef0",
+                  }}
+                >
+                  {(h.recent[0] ?? 0) > 0 ? "Undo Today" : "Mark Today"}
+                </button>
+
+                <button
+                  onClick={() => deleteHabit(h.id)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid #444",
+                    color: "#bbb",
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </main>
 
-      {/* MODAL */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center" onMouseDown={closeModal}>
+      {/* CREATE HABIT MODAL */}
+      {showCreate && (
+        <div
+          onMouseDown={() => setShowCreate(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <div
-            className="w-[640px] bg-[#1b2024] rounded-xl p-6 text-[#e8eef0] shadow-2xl"
             onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              width: 600,
+              background: "#1b2024",
+              borderRadius: 12,
+              padding: 24,
+              color: "#e8eef0",
+            }}
           >
-            <h3 className="text-lg font-semibold mb-3">Create a new habit.</h3>
+            <h3>Create Habit</h3>
 
-            <form className="flex flex-col gap-3.5" onSubmit={createHabit}>
-              <div className="flex gap-3.5">
-                <label className="flex flex-col text-sm gap-1.5 w-1/2">
-                  <span>Habit Name</span>
-                  <input
-                    className="py-2.5 px-2.5 rounded-lg bg-[#0f1114] border border-white/6 text-[#e8eef0]"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </label>
-
-                <label className="flex flex-col text-sm gap-1.5 w-1/2">
-                  <span>Frequency</span>
-                  <select
-                    className="py-2.5 px-2.5 rounded-lg bg-[#0f1114] border border-white/6 text-[#e8eef0]"
-                    value={frequency}
-                    onChange={(e) => setFrequency(e.target.value as any)}
-                  >
-                    <option>Daily</option>
-                    <option>Weekly</option>
-                    <option>Monthly</option>
-                  </select>
-                </label>
-              </div>
-
-              <label className="flex flex-col text-sm gap-1.5">
-                <span>Times Per Day (required)</span>
+            <form
+              onSubmit={createHabit}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              <label>
+                Habit Name
                 <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={timesPerDay}
-                  onChange={(e) => setTimesPerDay(Number(e.target.value))}
-                  className="py-2.5 px-2.5 rounded-lg bg-[#0f1114] border border-white/6 text-[#e8eef0]"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: 10,
+                    borderRadius: 8,
+                    background: "#0f1114",
+                    border: "1px solid #333",
+                    color: "#fff",
+                  }}
                 />
               </label>
 
-              <label className="flex flex-col text-sm gap-1.5">
-                <span>Description / Goal (optional)</span>
+              <label>
+                Description (optional)
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="py-2.5 px-2.5 rounded-lg bg-[#0f1114] border border-white/6 text-[#e8eef0] min-h-20"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: 10,
+                    borderRadius: 8,
+                    background: "#0f1114",
+                    border: "1px solid #333",
+                    color: "#fff",
+                  }}
                 />
               </label>
 
-              <div className="flex justify-end gap-3 mt-2">
-                <button type="button" className="py-2.5 px-3.5 rounded-lg bg-transparent border border-white/10 text-[#9fb3b7]" onClick={closeModal}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    background: "transparent",
+                    border: "1px solid #444",
+                    color: "#bbb",
+                  }}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="py-2.5 px-3.5 rounded-lg bg-linear-to-br from-[#0af575] to-[#0f8f4b] text-[#04150d]">
-                  Create Habit
+
+                <button
+                  type="submit"
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: 8,
+                    background: "#22c55e",
+                    fontWeight: 700,
+                    color: "#04150d",
+                  }}
+                >
+                  Create
                 </button>
               </div>
             </form>

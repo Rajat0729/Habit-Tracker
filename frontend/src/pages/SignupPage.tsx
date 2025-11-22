@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { API_BASE_URL } from "../services/api.js";
 
@@ -11,6 +11,17 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [width, setWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
+  const isMobile = width < 820;
+
+  useEffect(() => {
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,25 +57,105 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex h-screen w-full bg-(--bg)">
-      <div className="w-1/2 p-16 flex flex-col justify-center">
-        <img src="/graphimage.png" alt="Graph" className="w-[320px] mb-8 opacity-90" />
-        <h1 className="text-[42px] font-semibold">HabitFlow:</h1>
-        <h1 className="text-[36px] font-bold mt-2">
-          Master your days,
-          <br /> visualize your success.
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        height: "100vh",
+        width: "100%",
+        backgroundColor: "#0d1117",
+        color: "white",
+      }}
+    >
+      {/* LEFT SIDE — Branding */}
+      <div
+        style={{
+          width: isMobile ? "100%" : "50%",
+          padding: isMobile ? "30px 20px" : "60px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          textAlign: isMobile ? "center" : "left",
+          alignItems: isMobile ? "center" : "flex-start",
+        }}
+      >
+        <img
+          src="/graphimage.png"
+          alt="Graph"
+          style={{
+            width: isMobile ? "65%" : "320px",
+            maxWidth: "350px",
+            marginBottom: "40px",
+            opacity: 0.9,
+          }}
+        />
+
+        <h1
+          style={{
+            fontSize: isMobile ? "32px" : "42px",
+            fontWeight: 600,
+          }}
+        >
+          HabitFlow:
         </h1>
-        <p className="mt-5 text-[#aaaaaa] text-sm">A professional habit tracker built for consistency.</p>
+
+        <h1
+          style={{
+            fontSize: isMobile ? "26px" : "36px",
+            fontWeight: 700,
+            marginTop: "10px",
+            lineHeight: 1.3,
+          }}
+        >
+          Master your days, <br /> visualize your success.
+        </h1>
+
+        <p
+          style={{
+            marginTop: "20px",
+            color: "#aaa",
+            fontSize: "15px",
+            maxWidth: "420px",
+          }}
+        >
+          A professional habit tracker built for consistency.
+        </p>
       </div>
 
-      <div className="w-1/2 flex justify-center items-center">
-        <form className="bg-[#1c1f25] p-9 w-[350px] rounded-xl shadow-[0_2px_15px_rgba(0,0,0,0.4)]" onSubmit={handleSubmit}>
-          <h2 className="text-[24px] mb-5">Create account</h2>
+      {/* RIGHT SIDE — Registration Form */}
+      <div
+        style={{
+          width: isMobile ? "100%" : "50%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: isMobile ? "20px 0" : "0",
+        }}
+      >
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            backgroundColor: "#1c1f25",
+            padding: isMobile ? "24px" : "30px",
+            width: isMobile ? "88%" : "350px",
+            borderRadius: "12px",
+            boxShadow: "0px 2px 15px rgba(0,0,0,0.4)",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "24px",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            Create account
+          </h2>
 
-          <label className="text-sm block mt-2">Email Address</label>
+          {/* EMAIL */}
+          <label style={{ fontSize: "14px" }}>Email Address</label>
           <input
             type="email"
-            className="w-full p-2.5 mt-1 rounded-md border border-[#333] bg-[#0f1115] text-white"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -78,13 +169,14 @@ export default function SignupPage() {
               border: "1px solid #333",
               backgroundColor: "#0f1115",
               color: "white",
+              fontSize: "15px",
             }}
           />
 
-          <label className="text-sm block mt-2">Password</label>
+          {/* PASSWORD */}
+          <label style={{ fontSize: "14px" }}>Password</label>
           <input
             type="password"
-            className="w-full p-2.5 mt-1 rounded-md border border-[#333] bg-[#0f1115] text-white"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -98,13 +190,14 @@ export default function SignupPage() {
               border: "1px solid #333",
               backgroundColor: "#0f1115",
               color: "white",
+              fontSize: "15px",
             }}
           />
 
-          <label className="text-sm block mt-2">Confirm Password</label>
+          {/* CONFIRM PASSWORD */}
+          <label style={{ fontSize: "14px" }}>Confirm Password</label>
           <input
             type="password"
-            className="w-full p-2.5 mt-1 rounded-md border border-[#333] bg-[#0f1115] text-white"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
@@ -118,9 +211,11 @@ export default function SignupPage() {
               border: "1px solid #333",
               backgroundColor: "#0f1115",
               color: "white",
+              fontSize: "15px",
             }}
           />
 
+          {/* STATUS MESSAGES */}
           {error && (
             <div style={{ color: "salmon", marginBottom: "10px" }}>{error}</div>
           )}
@@ -130,12 +225,46 @@ export default function SignupPage() {
             </div>
           )}
 
-          <button type="submit" className="w-full bg-(--accent) py-3 rounded-md mt-5 text-base font-semibold hover:bg-[#18a84c]" disabled={loading}>
+          {/* SUBMIT */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              backgroundColor: "#22c55e",
+              padding: "12px",
+              borderRadius: "8px",
+              marginTop: "10px",
+              fontSize: "16px",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+              color: "#04150d",
+              transition: "0.2s",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#18a84c")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#22c55e")
+            }
+          >
             {loading ? "Creating..." : "Create account"}
           </button>
 
-          <p className="text-center mt-5 text-[#cccccc]">
-            Already have an account? <Link className="text-(--accent) no-underline" to="/login">Sign in</Link>
+          {/* FOOTER */}
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: "20px",
+              color: "#ccc",
+              fontSize: "14px",
+            }}
+          >
+            Already have an account?{" "}
+            <Link to="/login" style={{ color: "#2ecc71", textDecoration: "none" }}>
+              Sign in
+            </Link>
           </p>
         </form>
       </div>

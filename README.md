@@ -117,7 +117,7 @@ npm run dev
 ## **👨‍💻 Author**
 
 **Rajat Paliwal**
-Email: [rajatpaliwal@jklu.edu.in](mailto:rajatpaliwal@jklu.edu.in)
+
 
 ---
 

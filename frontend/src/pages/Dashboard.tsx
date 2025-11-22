@@ -1,20 +1,10 @@
-// frontend/src/pages/Dashboard.tsx
+
 import React, { useEffect, useMemo, useState } from "react";
 import { clearToken } from "../utils/auth.js";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL, fetchWithAuth } from "../services/api.js";
 
-/**
- * Dashboard.tsx
- * - Option C UI (list/cards)
- * - Required features implemented
- * - Extra: target-aware classification & monthly correctness handling
- *
- * Notes about data sources:
- * - Backend returns habit objects with `recent` (most-recent-first, index 0 = today)
- *   and meta fields (currentStreak, longestStreak). If `recent` length < month days,
- *   older days are treated as 0 by frontend. Days before habit.createdAt are shown as inactive.
- */
+
 
 type Habit = {
   id: string;
@@ -23,7 +13,7 @@ type Habit = {
   createdAt: string;
   timesPerDay: number;
   frequency: "Daily" | "Weekly" | "Monthly";
-  recent: number[]; // most-recent-first: index 0 = today, counts (0..)
+  recent: number[];
   currentStreak?: number;
   longestStreak?: number;
 };
@@ -33,7 +23,7 @@ const STORAGE_KEY = "habitflow_habits_v2";
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // state
+  
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -43,9 +33,9 @@ export default function Dashboard() {
   const [timesPerDay, setTimesPerDay] = useState<number>(1);
   const [description, setDescription] = useState("");
 
-  // filters & view
+  
   const [viewDaysMode, setViewDaysMode] = useState<"weekly" | "monthly">("weekly");
-  const [viewDays, setViewDays] = useState<number>(7); // derived from mode
+  const [viewDays, setViewDays] = useState<number>(7);
   const [sortMode, setSortMode] = useState<"name" | "current" | "longest">("name");
   const [search, setSearch] = useState("");
   const [frequencyFilter, setFrequencyFilter] = useState<"all" | Habit["frequency"]>("all");
@@ -54,10 +44,10 @@ export default function Dashboard() {
     setViewDays(viewDaysMode === "weekly" ? 7 : 28);
   }, [viewDaysMode]);
 
-  // load habits (try backend, fallback to local)
+  
   useEffect(() => {
     loadHabits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
 
   useEffect(() => {
@@ -66,12 +56,10 @@ export default function Dashboard() {
     } catch {}
   }, [habits]);
 
-  // -------------------------
-  // Utilities
-  // -------------------------
+  
   function normalizeServerHabit(raw: any): Habit {
     const id = raw.id ?? raw._id ?? String(Date.now());
-    // ensure recent is an array of numbers (counts)
+    
     const recent = Array.isArray(raw.recent)
       ? raw.recent.map((v: any) => Number(v) || 0)
       : Array(28).fill(0);
@@ -92,9 +80,7 @@ export default function Dashboard() {
     return /^[0-9a-fA-F]{24}$/.test(id);
   }
 
-  // -------------------------
-  // Persistence layer
-  // -------------------------
+  
   async function loadHabits() {
     setLoading(true);
     try {
@@ -106,7 +92,7 @@ export default function Dashboard() {
       setLoading(false);
       return;
     } catch {
-      // fallback local
+      
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         try {
@@ -121,9 +107,7 @@ export default function Dashboard() {
     }
   }
 
-  // -------------------------
-  // Create habit
-  // -------------------------
+  
   async function handleCreate(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!name.trim()) return alert("Please enter habit name");
@@ -142,7 +126,7 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error(err);
-      // local fallback
+      
       const newHabit: Habit = {
         id: Date.now().toString(),
         name: payload.name,
@@ -167,11 +151,9 @@ export default function Dashboard() {
     setFrequency("Daily");
   }
 
-  // -------------------------
-  // Toggle today (mark / undo)
-  // -------------------------
+  
   async function toggleToday(id: string) {
-    // prefer backend if server id
+    
     if (isObjectId(id)) {
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/habits/${id}/complete`, { method: "POST" });
@@ -182,30 +164,28 @@ export default function Dashboard() {
             setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
             return;
           }
-          // fallback: reload list
+          
           await loadHabits();
           return;
         }
       } catch {
-        // fallthrough to local
+        
       }
     }
 
-    // Local toggle: safe handling
+    
     setHabits((prev) =>
       prev.map((h) => {
         if (h.id !== id) return h;
         const next = [...(h.recent ?? Array(28).fill(0))];
         const todayVal = next[0] ?? 0;
-        next[0] = todayVal > 0 ? 0 : 1; // toggle single completion; multiple increments can be added later
+        next[0] = todayVal > 0 ? 0 : 1; 
         return { ...h, recent: next, currentStreak: calcCurrentStreak(next), longestStreak: calcLongestStreak(next) };
       })
     );
   }
 
-  // -------------------------
-  // Delete habit
-  // -------------------------
+  
   async function handleDelete(id: string) {
     if (!confirm("Delete this habit?")) return;
     if (isObjectId(id)) {
@@ -220,9 +200,7 @@ export default function Dashboard() {
     setHabits((p) => p.filter((h) => h.id !== id));
   }
 
-  // -------------------------
-  // helpers: streaks and heatmap
-  // -------------------------
+  
   function calcCurrentStreak(recent: number[]) {
     let cnt = 0;
     for (let i = 0; i < recent.length; i++) {
@@ -246,9 +224,7 @@ export default function Dashboard() {
     return max;
   }
 
-  // -------------------------
-  // Filters and sorting
-  // -------------------------
+  
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = habits.slice();
@@ -257,7 +233,7 @@ export default function Dashboard() {
 
     if (q) list = list.filter((h) => h.name.toLowerCase().includes(q));
 
-    // compute streaks from recent if not present
+    
     list = list.map((h) => ({ ...h, currentStreak: calcCurrentStreak(h.recent), longestStreak: calcLongestStreak(h.recent) }));
 
     if (sortMode === "name") {
@@ -270,9 +246,7 @@ export default function Dashboard() {
     return list;
   }, [habits, search, frequencyFilter, sortMode]);
 
-  // -------------------------
-  // Date helpers for calendar mapping (month view correct handling)
-  // -------------------------
+  
   function daysInMonth(year: number, month0: number) {
     return new Date(year, month0 + 1, 0).getDate();
   }
@@ -280,33 +254,24 @@ export default function Dashboard() {
   function dateToYMD(d: Date) {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
-    return x.toISOString().slice(0, 10); // YYYY-MM-DD
+    return x.toISOString().slice(0, 10); 
   }
 
   function dateDiffDays(a: Date, b: Date) {
-    // returns a - b in days (integer)
+    
     const ad = new Date(a); ad.setHours(0,0,0,0);
     const bd = new Date(b); bd.setHours(0,0,0,0);
     const diff = Math.round((ad.getTime() - bd.getTime()) / (1000*60*60*24));
     return diff;
   }
 
-  /**
-   * Build a mapping for the given habit for the currently selected month view.
-   * We show a calendar grid for the specified month/year.
-   * - Days after today: empty
-   * - Days before habit.createdAt: inactive (lighter)
-   * - For days within recent[] range (recent[0] = today), use that count
-   * - For days older than recent length, treat as 0
-   *
-   * Returns array of { dateISO, count, active, ratio } for each day in month.
-   */
+  
   function buildMonthDataForHabit(h: Habit, year: number, month0: number) {
     const days = daysInMonth(year, month0);
     const today = new Date(); today.setHours(0,0,0,0);
     const created = new Date(h.createdAt); created.setHours(0,0,0,0);
 
-    // recent array where index 0 = today
+    
     const recent = h.recent ?? Array(28).fill(0);
 
     const arr = [];
@@ -314,8 +279,8 @@ export default function Dashboard() {
       const d = new Date(year, month0, day);
       d.setHours(0,0,0,0);
       const iso = dateToYMD(d);
-      // compute how many days ago this day is relative to today:
-      const daysAgo = dateDiffDays(today, d); // 0 => today, >0 => past days, <0 => future
+      
+      const daysAgo = dateDiffDays(today, d); 
       let count = 0;
       if (daysAgo >= 0 && daysAgo < recent.length) {
         count = recent[daysAgo] ?? 0;
@@ -323,31 +288,29 @@ export default function Dashboard() {
         count = 0;
       }
 
-      const active = d <= today && d >= created; // only allow marking after creation and not future
-      const ratio = h.timesPerDay > 0 ? Math.min(count / h.timesPerDay, 2) : (count > 0 ? 1 : 0); // cap ratio at 2 for intense days
+      const active = d <= today && d >= created; 
+      const ratio = h.timesPerDay > 0 ? Math.min(count / h.timesPerDay, 2) : (count > 0 ? 1 : 0); 
 
       arr.push({ dateISO: iso, count, active, ratio, date: d });
     }
     return arr;
   }
 
-  // color scale for classification relative to target:
-  // ratio = count / timesPerDay
-  // ratio == 0 -> gray, 0<r<0.5 -> light green, 0.5<=r<1 -> green, r>=1 -> dark green, r>=1.5 -> very dark
+  
   function colorForRatio(ratio: number) {
-    if (ratio <= 0) return "#1a1d21"; // empty
-    if (ratio < 0.5) return "#a7f3d0"; // light
-    if (ratio < 1) return "#4ade80"; // mid
-    if (ratio < 1.5) return "#16a34a"; // full
-    return "#0b6b36"; // over-achieved
+    if (ratio <= 0) return "#1a1d21"; 
+    if (ratio < 0.5) return "#a7f3d0"; 
+    if (ratio < 1) return "#4ade80";
+    if (ratio < 1.5) return "#16a34a";
+    return "#0b6b36"; 
   }
 
-  // small mini bar chart data: compute week-wise completion % for current month
+  
   function miniBarData(h: Habit) {
     const now = new Date();
     const year = now.getFullYear(), month0 = now.getMonth();
     const monthData = buildMonthDataForHabit(h, year, month0);
-    // split into 4 weeks (approx), produce percent done per week
+    
     const weeks: number[] = [];
     for (let i = 0; i < 4; i++) {
       const start = Math.floor((i * monthData.length) / 4);
@@ -360,9 +323,8 @@ export default function Dashboard() {
     return weeks;
   }
 
-  // -------------------------
-  // final render
-  // -------------------------
+  
+  
   function logout() {
     clearToken();
     navigate("/login");
@@ -370,7 +332,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0b0d0f", color: "#e8eef0", fontFamily: "Inter, system-ui, sans-serif" }}>
-      {/* HEADER */}
+      
       <header style={{ display: "flex", alignItems: "center", padding: 16, borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <div style={{ width: 36, height: 36, borderRadius: 8, background: "linear-gradient(180deg,#0af575,#0f8f4b)" }} />
@@ -401,13 +363,13 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* MAIN */}
+      
       <main style={{ maxWidth: 1100, margin: "24px auto", padding: "0 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
           <button onClick={() => setShowCreate(true)} style={{ background: "#22c55e", color: "#04150d", padding: "10px 14px", borderRadius: 8, fontWeight: 700 }}>+ Add Habit</button>
         </div>
 
-        {/* list */}
+        
         <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {habits.length === 0 && !loading && (
             <div style={{ textAlign: "center", marginTop: 60, color: "#9fb3b7" }}>
@@ -419,7 +381,7 @@ export default function Dashboard() {
           {loading && <div>Loading...</div>}
 
           {filtered.map((h) => {
-            // month view uses current month
+            
             const now = new Date();
             const month0 = now.getMonth();
             const year = now.getFullYear();
@@ -428,7 +390,7 @@ export default function Dashboard() {
 
             return (
               <div key={h.id} style={{ display: "flex", gap: 16, alignItems: "center", padding: 14, borderRadius: 12, background: "rgba(255,255,255,0.02)" }}>
-                {/* left info */}
+               
                 <div style={{ width: 260 }}>
                   <div style={{ fontSize: 18, fontWeight: 700 }}>{h.name}</div>
                   <div style={{ marginTop: 6, color: "#9fb3b7", fontSize: 13 }}>
@@ -439,22 +401,22 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* heatmap / calendar */}
+                {}
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-                  {/* if weekly view: render last N days inline */}
+                  {}
                   {viewDaysMode === "weekly" ? (
                     <div style={{ display: "flex", gap: 8 }}>
                       {h.recent.slice(0, viewDays).map((count, i) => {
-                        // i = 0 => today, i=6 => 6 days ago
+                        
                         const ratio = h.timesPerDay > 0 ? Math.min((count ?? 0) / h.timesPerDay, 2) : (count ? 1 : 0);
                         const bg = colorForRatio(ratio);
-                        const inactive = false; // weekly shows last days only (no createdAt checks here)
+                        const inactive = false; 
                         const size = 28;
                         return <div key={i} title={`${i === 0 ? "Today" : `${i} day(s) ago`} • ${count ?? 0}/${h.timesPerDay}`} style={{ width: size, height: size, borderRadius: 6, background: inactive ? "#101214" : bg, display: "inline-block", border: "1px solid rgba(0,0,0,0.25)" }} />;
                       })}
                     </div>
                   ) : (
-                    // monthly: show a calendar-like row (linear wrapping)
+                    
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", width: 340 }}>
                       {monthData.map((cell, idx) => {
                         const bg = cell.active ? colorForRatio(cell.ratio) : "#15171a";
@@ -466,7 +428,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* tiny weekly/monthly summary bars */}
+                  {}
                   <div style={{ width: 120, display: "flex", gap: 6, alignItems: "flex-end" }}>
                     {weeks.map((w, i) => (
                       <div key={i} style={{ width: 18, height: `${Math.max(6, (w / 100) * 72)}px`, background: w >= 75 ? "#0d8c3d" : "#22c55e", borderRadius: 6 }} title={`${w}%`} />
@@ -474,7 +436,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* actions */}
+                {}
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                   <button onClick={() => toggleToday(h.id)} style={{ padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", color: "#e8eef0" }}>
                     {(h.recent?.[0] ?? 0) > 0 ? "Undo Today" : "Mark Today"}
@@ -489,7 +451,7 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* CREATE MODAL */}
+      {}
       {showCreate && (
         <div onMouseDown={() => setShowCreate(false)} style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
           <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 640, background: "#121417", padding: 20, borderRadius: 12, color: "#e8eef0" }}>

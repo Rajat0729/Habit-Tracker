@@ -1,6 +1,6 @@
 import Habit from "../models/Habit.js";
 
-// ⭐ Helper: generate last 28 days heatmap from datesCompleted[]
+
 function generateRecent(datesCompleted) {
   const recent = Array(28).fill(0);
 
@@ -17,7 +17,7 @@ function generateRecent(datesCompleted) {
     if (diffDays >= 0 && diffDays < 28) {
       recent[Math.floor(diffDays)] += 1;
       if (recent[Math.floor(diffDays)] > 4) {
-        recent[Math.floor(diffDays)] = 4; // cap intensity at 4
+        recent[Math.floor(diffDays)] = 4; 
       }
     }
   }
@@ -25,7 +25,7 @@ function generateRecent(datesCompleted) {
   return recent;
 }
 
-// ⭐ Helper: compute longest streak from datesCompleted[]
+
 function computeLongestStreak(datesCompleted) {
   if (!datesCompleted.length) return 0;
 
@@ -43,7 +43,7 @@ function computeLongestStreak(datesCompleted) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // check last 365 days
+  
   for (let i = 0; i < 365; i++) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
@@ -60,7 +60,7 @@ function computeLongestStreak(datesCompleted) {
   return longest;
 }
 
-// ⭐ Helper: compute current streak
+
 function computeCurrentStreak(datesCompleted) {
   if (!datesCompleted.length) return 0;
 
@@ -77,7 +77,7 @@ function computeCurrentStreak(datesCompleted) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // check today, yesterday, ...
+  
   for (let i = 0; i < 365; i++) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
@@ -93,7 +93,7 @@ function computeCurrentStreak(datesCompleted) {
   return streak;
 }
 
-// ⭐ FORMATTER: Return habit object EXACTLY as frontend wants
+
 function formatHabit(habit) {
   return {
     id: habit._id,
@@ -103,7 +103,7 @@ function formatHabit(habit) {
     timesPerDay: habit.timesPerDay || 1,
     frequency: habit.frequency || "Daily",
 
-    // computed
+    
     recent: generateRecent(habit.datesCompleted),
 
     currentStreak: computeCurrentStreak(habit.datesCompleted),
@@ -111,9 +111,7 @@ function formatHabit(habit) {
   };
 }
 
-// -----------------------------------------------------------------------------------
-// ✔ CREATE HABIT
-// -----------------------------------------------------------------------------------
+
 export const createHabit = async (req, res) => {
   try {
     const { name, description = "" } = req.body;
@@ -145,9 +143,7 @@ export const createHabit = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// ✔ GET ALL HABITS
-// -----------------------------------------------------------------------------------
+
 export const getHabits = async (req, res) => {
   try {
     const habits = await Habit.find({ userId: req.user });
@@ -161,9 +157,7 @@ export const getHabits = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// ✔ GET HABIT BY ID
-// -----------------------------------------------------------------------------------
+
 export const getHabitById = async (req, res) => {
   try {
     const habit = await Habit.findOne({
@@ -182,9 +176,7 @@ export const getHabitById = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// ✔ UPDATE HABIT
-// -----------------------------------------------------------------------------------
+
 export const updateHabit = async (req, res) => {
   try {
     const habit = await Habit.findOneAndUpdate(
@@ -202,9 +194,7 @@ export const updateHabit = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// ✔ RECORD COMPLETION (Mark Today)
-// -----------------------------------------------------------------------------------
+
 export const recordHabitCompletion = async (req, res) => {
   try {
     const habit = await Habit.findOne({
@@ -214,7 +204,7 @@ export const recordHabitCompletion = async (req, res) => {
 
     if (!habit) return res.status(404).json({ message: "Habit not found" });
 
-    // Call built-in model method
+    
     await habit.recordCompletion();
     await habit.save();
 
@@ -225,9 +215,7 @@ export const recordHabitCompletion = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------------------
-// ✔ DELETE HABIT
-// -----------------------------------------------------------------------------------
+
 export const deleteHabit = async (req, res) => {
   try {
     const habit = await Habit.findOneAndDelete({

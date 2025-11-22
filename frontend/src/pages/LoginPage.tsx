@@ -54,7 +54,7 @@ export default function LoginPage() {
         color: "white",
       }}
     >
-      {/* LEFT SIDE */}
+      {}
       <div
         style={{
           width: "50%",
@@ -85,7 +85,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* RIGHT SIDE */}
+      {}
       <div
         style={{
           width: "50%",

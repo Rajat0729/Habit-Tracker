@@ -98,7 +98,7 @@ export default function Dashboard() {
   async function loadHabits() {
     setLoading(true);
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits`);
+      const res = await fetchWithAuth(`${API_BASE_URL}/habits`);
       if (!res.ok) throw new Error("server error");
       const data = await res.json();
       const list = (data?.habits ?? []).map((r: any) => normalizeServerHabit(r));
@@ -130,7 +130,7 @@ export default function Dashboard() {
     const payload = { name: name.trim(), frequency, timesPerDay, description };
 
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/api/habits`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/habits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -140,7 +140,8 @@ export default function Dashboard() {
         closeCreate();
         return;
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       // local fallback
       const newHabit: Habit = {
         id: Date.now().toString(),
@@ -173,7 +174,7 @@ export default function Dashboard() {
     // prefer backend if server id
     if (isObjectId(id)) {
       try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/habits/${id}/complete`, { method: "POST" });
+        const res = await fetchWithAuth(`${API_BASE_URL}/habits/${id}/complete`, { method: "POST" });
         if (res.ok) {
           const j = await res.json().catch(() => null);
           if (j?.habit) {
@@ -209,7 +210,7 @@ export default function Dashboard() {
     if (!confirm("Delete this habit?")) return;
     if (isObjectId(id)) {
       try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/habits/${id}`, { method: "DELETE" });
+        const res = await fetchWithAuth(`${API_BASE_URL}/habits/${id}`, { method: "DELETE" });
         if (res.ok) {
           await loadHabits();
           return;

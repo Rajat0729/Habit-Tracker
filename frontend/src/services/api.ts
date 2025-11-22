@@ -19,7 +19,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  return fetch(API_BASE_URL + url, {
+  return fetch(url, {
     ...options,
     headers,
   });
@@ -41,28 +41,28 @@ async function request(url: string, options: any = {}) {
  */
 export const api = {
   login: (email: string, password: string) =>
-    request("/api/auth/login", {
+    request("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   register: (email: string, password: string) =>
-    request("/api/auth/register", {
+    request("/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
-  getHabits: () => request("/api/habits", { method: "GET" }),
+  getHabits: () => request("/habits", { method: "GET" }),
 
   createHabit: (name: string, description: string) =>
-    request("/api/habits", {
+    request("/habits", {
       method: "POST",
       body: JSON.stringify({ name, description }),
     }),
 
   deleteHabit: (id: string) =>
-    request(`/api/habits/${id}`, { method: "DELETE" }),
+    request(`/habits/${id}`, { method: "DELETE" }),
 
   recordHabitCompletion: (id: string) =>
-    request(`/api/habits/${id}/complete`, { method: "POST" }),
+    request(`/habits/${id}/complete`, { method: "POST" }),
 };

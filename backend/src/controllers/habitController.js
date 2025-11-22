@@ -119,7 +119,7 @@ export const createHabit = async (req, res) => {
     const { name, description = "" } = req.body;
 
     const exists = await Habit.findOne({
-      userId: req.user.id,
+      userId: req.user,
       name,
     });
 
@@ -128,7 +128,7 @@ export const createHabit = async (req, res) => {
     }
 
     const habit = await Habit.create({
-      userId: req.user.id,
+      userId: req.user,
       name,
       description,
       datesCompleted: [],
@@ -136,6 +136,7 @@ export const createHabit = async (req, res) => {
       longestStreak: 0,
       lastCompleted: null,
     });
+    await habit.save();
 
     return res.status(201).json({ habit: formatHabit(habit) });
   } catch (err) {
@@ -149,7 +150,7 @@ export const createHabit = async (req, res) => {
 // -----------------------------------------------------------------------------------
 export const getHabits = async (req, res) => {
   try {
-    const habits = await Habit.find({ userId: req.user.id });
+    const habits = await Habit.find({ userId: req.user });
 
     return res.json({
       habits: habits.map(formatHabit),
@@ -167,7 +168,7 @@ export const getHabitById = async (req, res) => {
   try {
     const habit = await Habit.findOne({
       _id: req.params.id,
-      userId: req.user.id,
+      userId: req.user,
     });
 
     if (!habit) {
@@ -187,7 +188,7 @@ export const getHabitById = async (req, res) => {
 export const updateHabit = async (req, res) => {
   try {
     const habit = await Habit.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
+      { _id: req.params.id, userId: req.user },
       req.body,
       { new: true }
     );
@@ -208,7 +209,7 @@ export const recordHabitCompletion = async (req, res) => {
   try {
     const habit = await Habit.findOne({
       _id: req.params.id,
-      userId: req.user.id,
+      userId: req.user,
     });
 
     if (!habit) return res.status(404).json({ message: "Habit not found" });
@@ -231,7 +232,7 @@ export const deleteHabit = async (req, res) => {
   try {
     const habit = await Habit.findOneAndDelete({
       _id: req.params.id,
-      userId: req.user.id,
+      userId: req.user,
     });
 
     if (!habit) return res.status(404).json({ message: "Habit not found" });

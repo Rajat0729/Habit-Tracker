@@ -57,11 +57,12 @@ habitSchema.methods.recordCompletion = function () {
   const dateCurrent = new Date(date);
   dateCurrent.setHours(0, 0, 0, 0);
 
-  if (!this.datesCompleted.some(d => {
+  const idx = this.datesCompleted.findIndex(d => {
     const dateCompleted = new Date(d);
     dateCompleted.setHours(0, 0, 0, 0);
     return dateCompleted.getTime() === dateCurrent.getTime();
-  })) {
+  });
+  if (idx === -1) {
     this.datesCompleted.push(date);
 
     if (this.lastCompleted) {
@@ -83,9 +84,10 @@ habitSchema.methods.recordCompletion = function () {
     if (this.currentStreak > this.longestStreak) {
       this.longestStreak = this.currentStreak;
     }
-    return this.save();
+  } else {
+    this.datesCompleted.splice(idx, 1);
   }
-  return Promise.resolve(this);
-}
+  return this.save();
+};
 
 export default mongoose.model("Habit", habitSchema);

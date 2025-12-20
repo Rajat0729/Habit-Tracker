@@ -17,6 +17,9 @@ import {
   loadAllLogsFromIndexedDB,
 } from "../utils/indexedDb.js";
 
+import { deleteDailyLog } from "../services/deleteDailyLog.js";
+import { deleteLogFromIndexedDB } from "../utils/indexedDb.js";
+
 /* =======================
    THEME
 ======================= */
@@ -148,6 +151,33 @@ export default function DailyLogPage() {
   const [activeLog, setActiveLog] = useState<DailyLog | null>(null);
   const [form, setForm] = useState<EditorForm | null>(null);
   const [status, setStatus] = useState<SyncStatus>("idle");
+
+  async function handleDeleteLog() {
+  if (!form) return;
+
+  const confirmDelete = window.confirm(
+    `Delete log for ${formatDate(form.date)}?\nThis cannot be undone.`
+  );
+
+  if (!confirmDelete) return;
+
+  // 1. IndexedDB
+  await deleteLogFromIndexedDB(form.date);
+
+  // 2. localStorage
+  localStorage.removeItem(`daily-log-${form.date}`);
+
+  // 3. Backend (best effort)
+  await deleteDailyLog(form.date);
+
+  // 4. Update UI
+  setWeeklyLogs((prev) =>
+    prev.filter((l) => l.date !== form.date)
+  );
+  setActiveLog(null);
+  setForm(null);
+}
+
 
   /* =======================
      LOAD WEEKLY LOGS
@@ -459,6 +489,24 @@ export default function DailyLogPage() {
                     border: `1px solid ${theme.border}`,
                   }}
                 />
+
+                <button
+                  onClick={handleDeleteLog}
+                  style={{
+                    width: "100%",
+                    background: "rgba(239,68,68,0.15)",
+                    color: "#ef4444",
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid rgba(239,68,68,0.3)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    marginBottom: 10,
+                  }}
+                >
+                  🗑 Delete This Log
+                </button>
+
 
                 <button
                   onClick={manualSave}

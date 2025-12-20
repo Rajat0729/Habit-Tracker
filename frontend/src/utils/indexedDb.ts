@@ -70,3 +70,13 @@ export async function clearIndexedDB() {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+export async function deleteLogFromIndexedDB(date: string) {
+  const db = await openDB();
+  const tx = db.transaction("logs", "readwrite");
+  tx.objectStore("logs").delete(date);
+  return new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}

@@ -9,6 +9,14 @@ import {
 import { saveLogsToLocal } from "../utils/localBackup.js";
 import { syncImportedLogs } from "../services/restoreService.js";
 
+import { exportLogsToCSV } from "../utils/exportCsv.js";
+import { exportLogsToExcel } from "../utils/exportExcel.js";
+
+import {
+  saveLogToIndexedDB,
+  loadAllLogsFromIndexedDB,
+} from "../utils/indexedDb.js";
+
 /* =======================
    THEME
 ======================= */
@@ -145,20 +153,16 @@ export default function DailyLogPage() {
      LOAD WEEKLY LOGS
   ======================= */
   useEffect(() => {
-    getWeeklyLogs()
-      .then((logs) =>
-        setWeeklyLogs(
-          logs
-            .filter(Boolean)
-            .sort(
-              (a, b) =>
-                new Date(b.date).getTime() -
-                new Date(a.date).getTime()
-            )
-        )
-      )
-      .catch(() => setWeeklyLogs([]));
-  }, []);
+  getWeeklyLogs()
+    .then((logs) => {
+      setWeeklyLogs(logs);
+      logs.forEach((l) => saveLogToIndexedDB(l));
+    })
+    .catch(async () => {
+      const offlineLogs = await loadAllLogsFromIndexedDB();
+      setWeeklyLogs(offlineLogs);
+    });
+}, []);
 
   /* =======================
      ADD / OPEN LOG
@@ -207,7 +211,8 @@ export default function DailyLogPage() {
         hoursWorked: form.hoursWorked,
       };
 
-      saveLogsToLocal([payload]);
+      saveLogToIndexedDB(payload);
+
 
       saveDailyLog(payload)
         .then(() => setStatus("synced"))
@@ -230,7 +235,8 @@ export default function DailyLogPage() {
     };
 
     saveLogsToLocal([payload]);
-    await saveDailyLog(payload);
+    await saveLogToIndexedDB(payload);
+
     setStatus("synced");
   }
 
@@ -352,34 +358,46 @@ export default function DailyLogPage() {
           <>
             {/* TOP BAR */}
             <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <StatusPill green text="Online & Synced" />
-              <StatusPill text="Saved locally" />
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  }}
+>
+  <StatusPill green text="Online & Synced" />
+  <StatusPill text="Saved locally" />
 
-              <ActionBtn
-                text="⬇ Full Backup (JSON)"
-                onClick={() => exportLogsToJSON(weeklyLogs)}
-              />
+  <ActionBtn
+    text="⬇ Backup (JSON)"
+    onClick={() => exportLogsToJSON(weeklyLogs)}
+  />
 
-              <ActionBtn
-                text="🔄 Restore Backup"
-                onClick={() => fileInputRef.current?.click()}
-              />
+  <ActionBtn
+    text="⬇ Export CSV"
+    onClick={() => exportLogsToCSV(weeklyLogs)}
+  />
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                hidden
-                onChange={handleRestore}
-              />
-            </div>
+  <ActionBtn
+    text="⬇ Export Excel"
+    onClick={() => exportLogsToExcel(weeklyLogs)}
+  />
+
+  <ActionBtn
+    text="🔄 Restore Backup"
+    onClick={() => fileInputRef.current?.click()}
+  />
+
+  <input
+    ref={fileInputRef}
+    type="file"
+    accept=".json"
+    hidden
+    onChange={handleRestore}
+  />
+</div>
+
 
             <GlassCard>
               <div style={{ padding: 24 }}>

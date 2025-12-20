@@ -20,6 +20,7 @@
     "react-router-dom": "^7.9.6",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.12"
   },
   "devDependencies": {

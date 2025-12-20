@@ -4,13 +4,21 @@ import type { DailyLog } from "../types/dailyLog.ts";
  * Export all logs as JSON backup
  */
 export function exportLogsToJSON(logs: DailyLog[]) {
+  const cleanLogs = logs.map((l) => ({
+    date: l.date,
+    workSummary: l.workSummary,
+    keyLearnings: l.keyLearnings ?? [],
+    issuesFaced: l.issuesFaced ?? "",
+    hoursWorked: l.hoursWorked ?? 0,
+  }));
+
   const payload = {
     meta: {
       app: "DailyLog Pro",
       version: "1.0",
       exportedAt: new Date().toISOString(),
     },
-    logs,
+    logs: cleanLogs,
   };
 
   const blob = new Blob(

@@ -2,6 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveDailyLog, getWeeklyLogs } from "../services/dailyLogApi.js";
 import type { DailyLog } from "../types/dailyLog.js";
+import {
+  exportLogsToJSON,
+  importLogsFromJSON,
+} from "../utils/backupUtils.js";
+import { saveLogsToLocal } from "../utils/localBackup.js";
+import { syncImportedLogs } from "../services/restoreService.js";
 
 /* =======================
    THEME
@@ -53,7 +59,7 @@ type SyncStatus =
   | "offline";
 
 /* =======================
-   SMALL UI COMPONENTS
+   UI COMPONENTS
 ======================= */
 const GlassCard: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div
@@ -97,11 +103,14 @@ const StatusPill = ({
 const ActionBtn = ({
   text,
   danger,
+  onClick,
 }: {
   text: string;
   danger?: boolean;
+  onClick?: () => void;
 }) => (
   <button
+    onClick={onClick}
     style={{
       padding: "6px 12px",
       borderRadius: 10,
@@ -124,15 +133,17 @@ const ActionBtn = ({
 ======================= */
 export default function DailyLogPage() {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const autosaveTimer = useRef<number | null>(null);
 
   const [weeklyLogs, setWeeklyLogs] = useState<DailyLog[]>([]);
   const [activeLog, setActiveLog] = useState<DailyLog | null>(null);
   const [form, setForm] = useState<EditorForm | null>(null);
   const [status, setStatus] = useState<SyncStatus>("idle");
 
-  const autosaveTimer = useRef<number | null>(null);
-
-  /* LOAD WEEKLY LOGS */
+  /* =======================
+     LOAD WEEKLY LOGS
+  ======================= */
   useEffect(() => {
     getWeeklyLogs()
       .then((logs) =>
@@ -149,6 +160,9 @@ export default function DailyLogPage() {
       .catch(() => setWeeklyLogs([]));
   }, []);
 
+  /* =======================
+     ADD / OPEN LOG
+  ======================= */
   function addTodayLog() {
     setActiveLog(null);
     setForm({
@@ -172,7 +186,9 @@ export default function DailyLogPage() {
     setStatus("synced");
   }
 
-  /* AUTOSAVE */
+  /* =======================
+     AUTOSAVE (SERVER + LOCAL)
+  ======================= */
   useEffect(() => {
     if (!form) return;
     setStatus("typing");
@@ -182,28 +198,58 @@ export default function DailyLogPage() {
 
     autosaveTimer.current = window.setTimeout(() => {
       setStatus("autosaving");
-      saveDailyLog({
+
+      const payload: DailyLog = {
         date: form.date,
         workSummary: form.workSummary,
         keyLearnings: form.keyLearnings.split("\n").filter(Boolean),
         issuesFaced: form.issuesFaced,
         hoursWorked: form.hoursWorked,
-      })
+      };
+
+      saveLogsToLocal([payload]);
+
+      saveDailyLog(payload)
         .then(() => setStatus("synced"))
         .catch(() => setStatus("offline"));
     }, 5000);
   }, [form]);
 
+  /* =======================
+     MANUAL SAVE
+  ======================= */
   async function manualSave() {
     if (!form) return;
-    await saveDailyLog({
+
+    const payload: DailyLog = {
       date: form.date,
       workSummary: form.workSummary,
       keyLearnings: form.keyLearnings.split("\n").filter(Boolean),
       issuesFaced: form.issuesFaced,
       hoursWorked: form.hoursWorked,
-    });
+    };
+
+    saveLogsToLocal([payload]);
+    await saveDailyLog(payload);
     setStatus("synced");
+  }
+
+  /* =======================
+     RESTORE FROM BACKUP
+  ======================= */
+  async function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const logs = await importLogsFromJSON(file);
+      saveLogsToLocal(logs);
+      await syncImportedLogs(logs);
+      setWeeklyLogs(logs);
+      alert("Backup restored successfully");
+    } catch {
+      alert("Invalid backup file");
+    }
   }
 
   /* =======================
@@ -314,9 +360,25 @@ export default function DailyLogPage() {
               }}
             >
               <StatusPill green text="Online & Synced" />
-              <StatusPill text="Saved locally · 10:21 PM" />
-              <ActionBtn text="⬇ Download Today (.csv)" />
-              <ActionBtn danger text="🚨 Emergency Export" />
+              <StatusPill text="Saved locally" />
+
+              <ActionBtn
+                text="⬇ Full Backup (JSON)"
+                onClick={() => exportLogsToJSON(weeklyLogs)}
+              />
+
+              <ActionBtn
+                text="🔄 Restore Backup"
+                onClick={() => fileInputRef.current?.click()}
+              />
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                hidden
+                onChange={handleRestore}
+              />
             </div>
 
             <GlassCard>
@@ -337,7 +399,10 @@ export default function DailyLogPage() {
                     <textarea
                       value={(form as any)[key as string]}
                       onChange={(e) =>
-                        setForm({ ...form, [key as string]: e.target.value })
+                        setForm({
+                          ...form,
+                          [key as string]: e.target.value,
+                        })
                       }
                       style={{
                         width: "100%",
@@ -348,7 +413,6 @@ export default function DailyLogPage() {
                         background: "rgba(31,41,55,0.8)",
                         color: theme.text,
                         border: `1px solid ${theme.border}`,
-                        backdropFilter: "blur(6px)",
                       }}
                     />
                   </div>
@@ -361,7 +425,10 @@ export default function DailyLogPage() {
                   type="number"
                   value={form.hoursWorked}
                   onChange={(e) =>
-                    setForm({ ...form, hoursWorked: +e.target.value })
+                    setForm({
+                      ...form,
+                      hoursWorked: +e.target.value,
+                    })
                   }
                   style={{
                     width: 120,

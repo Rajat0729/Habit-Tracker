@@ -236,7 +236,7 @@ export default function Dashboard() {
       >
         <div style={{ fontWeight: 700, fontSize: 18 }}>HabitFlow</div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}>
           <button
             onClick={() => navigate("/daily-log")}
             style={{

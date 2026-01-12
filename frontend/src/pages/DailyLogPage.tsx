@@ -355,16 +355,16 @@ export default function DailyLogPage() {
             </div>
 
             {[
-              ["Work Summary", "workSummary"],
-              ["Key Learnings", "keyLearnings"],
-              ["Issues Faced", "issuesFaced"],
+              ["Work Summary", "workSummary"] as const,
+              ["Key Learnings", "keyLearnings"] as const,
+              ["Issues Faced", "issuesFaced"] as const,
             ].map(([label, key]) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, color: theme.muted }}>
                   {label}
                 </label>
                 <textarea
-                  value={(form as any)[key]}
+                  value={form[key]}
                   onChange={(e) => {
                     autoResize(e);
                     setForm({ ...form, [key]: e.target.value });

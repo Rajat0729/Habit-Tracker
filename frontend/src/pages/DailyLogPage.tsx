@@ -174,11 +174,22 @@ export default function DailyLogPage() {
   }
 
   /* =======================
-     AUTO-RESIZE TEXTAREA
+     EXPORT (UNCHANGED + SAFE)
+  ======================= */
+  function handleExport(type: "json" | "csv" | "excel" | "word") {
+    if (type === "json") exportLogsToJSON(weeklyLogs);
+    if (type === "csv") exportLogsToCSV(weeklyLogs);
+    if (type === "excel") exportLogsToExcel(weeklyLogs);
+    if (type === "word") exportLogsToWord(weeklyLogs);
+    setShowExportMenu(false);
+  }
+
+  /* =======================
+     TEXTAREA AUTO-RESIZE
   ======================= */
   function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) {
     e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + "px";
+    e.target.style.height = `${e.target.scrollHeight}px`;
   }
 
   /* =======================
@@ -222,7 +233,7 @@ export default function DailyLogPage() {
         </button>
       </aside>
 
-      {/* WEEKLY OVERVIEW (FIXED HEIGHT + SCROLL) */}
+      {/* WEEKLY OVERVIEW (SCROLL FIX) */}
       <section style={{ padding: 20 }}>
         <div
           style={{
@@ -282,17 +293,78 @@ export default function DailyLogPage() {
               padding: 24,
             }}
           >
+            {/* HEADER */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <h3>Daily Log Editor</h3>
+
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowExportMenu((p) => !p)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.panelSoft,
+                    color: theme.text,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⬇ Export
+                </button>
+
+                {showExportMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "110%",
+                      background: "#0f172a",
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      zIndex: 20,
+                    }}
+                  >
+                    {[
+                      ["JSON (Backup)", "json"],
+                      ["CSV", "csv"],
+                      ["Excel (.xlsx)", "excel"],
+                      ["Word (.docx)", "word"],
+                    ].map(([label, key]) => (
+                      <div
+                        key={key}
+                        onClick={() => handleExport(key as any)}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {[
-              ["Work Summary", "workSummary"] as const,
-              ["Key Learnings", "keyLearnings"] as const,
-              ["Issues Faced", "issuesFaced"] as const,
+              ["Work Summary", "workSummary"],
+              ["Key Learnings", "keyLearnings"],
+              ["Issues Faced", "issuesFaced"],
             ].map(([label, key]) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, color: theme.muted }}>
                   {label}
                 </label>
                 <textarea
-                  value={(form as any)[key as string]}
+                  value={(form as any)[key]}
                   onChange={(e) => {
                     autoResize(e);
                     setForm({ ...form, [key]: e.target.value });

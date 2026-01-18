@@ -4,10 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { saveDailyLog, getWeeklyLogs } from "../services/dailyLogApi.js";
 import { deleteDailyLog } from "../services/deleteDailyLog.js";
 
-import {
-  exportLogsToJSON,
-  importLogsFromJSON,
-} from "../utils/backupUtils.js";
+import { exportLogsToJSON } from "../utils/backupUtils.js";
 import { exportLogsToCSV } from "../utils/exportCsv.js";
 import { exportLogsToExcel } from "../utils/exportExcel.js";
 import { exportLogsToWord } from "../utils/exportWord.js";
@@ -78,8 +75,8 @@ export default function DailyLogPage() {
   const [weeklyLogs, setWeeklyLogs] = useState<DailyLog[]>([]);
   const [activeLog, setActiveLog] = useState<DailyLog | null>(null);
   const [form, setForm] = useState<EditorForm | null>(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
 
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedPastDate, setSelectedPastDate] = useState("");
 
@@ -178,7 +175,7 @@ export default function DailyLogPage() {
       hoursWorked: form.hoursWorked,
     };
 
-    saveLogToIndexedDB(payload);
+    await saveLogToIndexedDB(payload);
     saveLogsToLocal([payload]);
     await saveDailyLog(payload);
 
@@ -273,7 +270,6 @@ export default function DailyLogPage() {
             background: theme.panelSoft,
             color: theme.text,
             border: `1px solid ${theme.border}`,
-            cursor: "pointer",
           }}
         >
           ⏳ Add Previous Due Log
@@ -316,6 +312,7 @@ export default function DailyLogPage() {
                 borderRadius: 10,
               }}
             />
+
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button
                 disabled={!selectedPastDate}
@@ -336,11 +333,7 @@ export default function DailyLogPage() {
               </button>
               <button
                 onClick={() => setShowDatePicker(false)}
-                style={{
-                  flex: 1,
-                  padding: 10,
-                  borderRadius: 10,
-                }}
+                style={{ flex: 1, padding: 10, borderRadius: 10 }}
               >
                 Cancel
               </button>
@@ -402,24 +395,84 @@ export default function DailyLogPage() {
               padding: 24,
             }}
           >
-            <h3 style={{ marginBottom: 16 }}>
-              Daily Log Editor — {formatDate(form.date)}
-            </h3>
+            {/* HEADER */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <h3>Daily Log Editor — {formatDate(form.date)}</h3>
+
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowExportMenu((p) => !p)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.panelSoft,
+                    color: theme.text,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⬇ Export
+                </button>
+
+                {showExportMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "110%",
+                      background: "#0f172a",
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      zIndex: 20,
+                      minWidth: 160,
+                    }}
+                  >
+                    {[
+                      ["JSON (Backup)", "json"],
+                      ["CSV", "csv"],
+                      ["Excel (.xlsx)", "excel"],
+                      ["Word (.docx)", "word"],
+                    ].map(([label, key]) => (
+                      <div
+                        key={key}
+                        onClick={() => handleExport(key as any)}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          color: theme.text,
+                          background: theme.panel,
+                        }}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
             {[
-              ["Work Summary", "workSummary"],
-              ["Key Learnings", "keyLearnings"],
-              ["Issues Faced", "issuesFaced"],
+              ["Work Summary", "workSummary"] as const,
+              ["Key Learnings", "keyLearnings"] as const,
+              ["Issues Faced", "issuesFaced"] as const,
             ].map(([label, key]) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, color: theme.muted }}>
                   {label}
                 </label>
                 <textarea
-                  value={(form as any)[key as string]}
+                  value={form[key]}
                   onChange={(e) => {
                     autoResize(e);
-                    setForm({ ...form, [key as string]: e.target.value });
+                    setForm({ ...form, [key]: e.target.value });
                   }}
                   style={{
                     width: "100%",

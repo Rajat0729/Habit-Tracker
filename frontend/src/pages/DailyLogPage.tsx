@@ -19,7 +19,6 @@ import {
 } from "../utils/indexedDb.js";
 
 import { saveLogsToLocal } from "../utils/localBackup.js";
-
 import type { DailyLog } from "../types/dailyLog.js";
 
 /* =======================
@@ -53,6 +52,11 @@ const formatDate = (date: string) =>
 const firstLine = (t?: string) =>
   t?.split("\n")[0]?.trim() || "No summary";
 
+const sortByDateDesc = (logs: DailyLog[]) =>
+  [...logs].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
 /* =======================
    TYPES
 ======================= */
@@ -76,18 +80,22 @@ export default function DailyLogPage() {
   const [form, setForm] = useState<EditorForm | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedPastDate, setSelectedPastDate] = useState("");
+
   /* =======================
      LOAD LOGS
   ======================= */
   useEffect(() => {
     getWeeklyLogs()
       .then((logs) => {
-        setWeeklyLogs(logs);
-        logs.forEach(saveLogToIndexedDB);
+        const sorted = sortByDateDesc(logs);
+        setWeeklyLogs(sorted);
+        sorted.forEach(saveLogToIndexedDB);
       })
       .catch(async () => {
         const offline = await loadAllLogsFromIndexedDB();
-        setWeeklyLogs(offline);
+        setWeeklyLogs(sortByDateDesc(offline));
       });
   }, []);
 
@@ -98,6 +106,17 @@ export default function DailyLogPage() {
     setActiveLog(null);
     setForm({
       date: todayKey(),
+      workSummary: "",
+      keyLearnings: "",
+      issuesFaced: "",
+      hoursWorked: 0,
+    });
+  }
+
+  function addPreviousLog(date: string) {
+    setActiveLog(null);
+    setForm({
+      date,
       workSummary: "",
       keyLearnings: "",
       issuesFaced: "",
@@ -135,6 +154,13 @@ export default function DailyLogPage() {
       saveLogToIndexedDB(payload);
       saveLogsToLocal([payload]);
       saveDailyLog(payload).catch(() => {});
+
+      setWeeklyLogs((prev) =>
+        sortByDateDesc([
+          ...prev.filter((l) => l.date !== payload.date),
+          payload,
+        ])
+      );
     }, 4000);
   }, [form]);
 
@@ -155,6 +181,13 @@ export default function DailyLogPage() {
     saveLogToIndexedDB(payload);
     saveLogsToLocal([payload]);
     await saveDailyLog(payload);
+
+    setWeeklyLogs((prev) =>
+      sortByDateDesc([
+        ...prev.filter((l) => l.date !== payload.date),
+        payload,
+      ])
+    );
   }
 
   /* =======================
@@ -174,7 +207,7 @@ export default function DailyLogPage() {
   }
 
   /* =======================
-     EXPORT (UNCHANGED + SAFE)
+     EXPORT
   ======================= */
   function handleExport(type: "json" | "csv" | "excel" | "word") {
     if (type === "json") exportLogsToJSON(weeklyLogs);
@@ -185,7 +218,7 @@ export default function DailyLogPage() {
   }
 
   /* =======================
-     TEXTAREA AUTO-RESIZE
+     TEXTAREA AUTO RESIZE
   ======================= */
   function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) {
     e.target.style.height = "auto";
@@ -218,63 +251,140 @@ export default function DailyLogPage() {
         <button
           onClick={addTodayLog}
           style={{
-            marginTop: 24,
             background: theme.accent,
-            color: "#04150d",
             padding: 12,
             borderRadius: 12,
             fontWeight: 700,
+            width: "100%",
             border: "none",
             cursor: "pointer",
-            width: "100%",
           }}
         >
           + Add Today’s Log
         </button>
+
+        <button
+          onClick={() => setShowDatePicker(true)}
+          style={{
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 12,
+            width: "100%",
+            background: theme.panelSoft,
+            color: theme.text,
+            border: `1px solid ${theme.border}`,
+            cursor: "pointer",
+          }}
+        >
+          ⏳ Add Previous Due Log
+        </button>
       </aside>
 
-      {/* WEEKLY OVERVIEW (SCROLL FIX) */}
+      {/* DATE PICKER MODAL */}
+      {showDatePicker && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              background: theme.panel,
+              padding: 24,
+              borderRadius: 16,
+              width: 320,
+            }}
+          >
+            <h4>Select Past Date</h4>
+            <input
+              type="date"
+              max={new Date(Date.now() - 86400000)
+                .toISOString()
+                .slice(0, 10)}
+              value={selectedPastDate}
+              onChange={(e) => setSelectedPastDate(e.target.value)}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                padding: 10,
+                borderRadius: 10,
+              }}
+            />
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button
+                disabled={!selectedPastDate}
+                onClick={() => {
+                  addPreviousLog(selectedPastDate);
+                  setShowDatePicker(false);
+                  setSelectedPastDate("");
+                }}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                  background: theme.accent,
+                  border: "none",
+                }}
+              >
+                Continue
+              </button>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WEEKLY OVERVIEW */}
       <section style={{ padding: 20 }}>
         <div
           style={{
             background: theme.panel,
-            border: `1px solid ${theme.border}`,
             borderRadius: 16,
             padding: 16,
             maxHeight: "calc(100vh - 40px)",
             overflowY: "auto",
           }}
         >
-          <h4 style={{ marginBottom: 12 }}>Weekly Overview</h4>
+          <h4>Weekly Overview</h4>
 
-          {weeklyLogs.map((log) => {
-            const active = activeLog?.date === log.date;
-            return (
-              <div
-                key={log.date}
-                onClick={() => openLog(log)}
-                style={{
-                  marginBottom: 10,
-                  padding: 12,
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  background: active
+          {weeklyLogs.map((log) => (
+            <div
+              key={log.date}
+              onClick={() => openLog(log)}
+              style={{
+                marginTop: 10,
+                padding: 12,
+                borderRadius: 12,
+                cursor: "pointer",
+                background:
+                  activeLog?.date === log.date
                     ? theme.accentSoft
                     : theme.panelSoft,
-                  border: active
-                    ? `1px solid ${theme.accent}`
-                    : `1px solid ${theme.border}`,
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>
-                  {formatDate(log.date)}
-                </div>
-                <div style={{ fontSize: 12, color: theme.muted }}>
-                  {firstLine(log.workSummary)}
-                </div>
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>
+                {formatDate(log.date)}
               </div>
-            );
-          })}
+              <div style={{ fontSize: 12, color: theme.muted }}>
+                {firstLine(log.workSummary)}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -288,86 +398,28 @@ export default function DailyLogPage() {
           <div
             style={{
               background: theme.panel,
-              border: `1px solid ${theme.border}`,
               borderRadius: 18,
               padding: 24,
             }}
           >
-            {/* HEADER */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 16,
-              }}
-            >
-              <h3>Daily Log Editor</h3>
-
-              <div style={{ position: "relative" }}>
-                <button
-                  onClick={() => setShowExportMenu((p) => !p)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${theme.border}`,
-                    background: theme.panelSoft,
-                    color: theme.text,
-                    cursor: "pointer",
-                  }}
-                >
-                  ⬇ Export
-                </button>
-
-                {showExportMenu && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      top: "110%",
-                      background: "#0f172a",
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 10,
-                      overflow: "hidden",
-                      zIndex: 20,
-                    }}
-                  >
-                    {[
-                      ["JSON (Backup)", "json"],
-                      ["CSV", "csv"],
-                      ["Excel (.xlsx)", "excel"],
-                      ["Word (.docx)", "word"],
-                    ].map(([label, key]) => (
-                      <div
-                        key={key}
-                        onClick={() => handleExport(key as any)}
-                        style={{
-                          padding: "8px 14px",
-                          fontSize: 13,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {label}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <h3 style={{ marginBottom: 16 }}>
+              Daily Log Editor — {formatDate(form.date)}
+            </h3>
 
             {[
-              ["Work Summary", "workSummary"] as const,
-              ["Key Learnings", "keyLearnings"] as const,
-              ["Issues Faced", "issuesFaced"] as const,
+              ["Work Summary", "workSummary"],
+              ["Key Learnings", "keyLearnings"],
+              ["Issues Faced", "issuesFaced"],
             ].map(([label, key]) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 13, color: theme.muted }}>
                   {label}
                 </label>
                 <textarea
-                  value={form[key]}
+                  value={(form as any)[key as string]}
                   onChange={(e) => {
                     autoResize(e);
-                    setForm({ ...form, [key]: e.target.value });
+                    setForm({ ...form, [key as string]: e.target.value });
                   }}
                   style={{
                     width: "100%",

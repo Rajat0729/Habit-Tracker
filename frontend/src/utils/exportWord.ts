@@ -9,8 +9,42 @@ import {
   WidthType,
   VerticalAlign,
 } from "docx";
-import type { DailyLog } from "../types/dailyLog.ts";
+import type { DailyLog } from "../types/dailyLog.js";
 
+/* =======================
+   MARKDOWN → PLAIN TEXT
+======================= */
+function mdToPlainText(md?: string): string {
+  if (!md) return "";
+
+  return md
+    // Bold / italic / underline / strike
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/~~(.*?)~~/g, "$1")
+
+    // Headings
+    .replace(/^#{1,6}\s*/gm, "")
+
+    // Links [text](url)
+    .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+
+    // Inline code
+    .replace(/`([^`]*)`/g, "$1")
+
+    // Blockquotes
+    .replace(/^>\s*/gm, "")
+
+    // Trim extra newlines
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/* =======================
+   EXPORT
+======================= */
 export async function exportLogsToWord(logs: DailyLog[]) {
   if (!logs.length) {
     alert("No logs available to export");
@@ -90,35 +124,36 @@ function headerCell(text: string) {
 }
 
 /**
- * Creates a readable, wrapped, spaced cell
- * Supports:
- * - line breaks
- * - bullet points
+ * Clean Word-friendly cell:
+ * ✔ Markdown removed
+ * ✔ Bullets preserved
+ * ✔ Proper spacing
  */
 function richTextCell(text?: string) {
   if (!text) return bodyCell("");
 
-  const lines = text
+  const clean = mdToPlainText(text);
+
+  const lines = clean
     .split(/\n+/)
     .map((l) => l.trim())
     .filter(Boolean);
 
   const paragraphs = lines.map((line) => {
-    // Bullet detection
-    if (line.startsWith("-")) {
+    // Bullet detection (-, *, +)
+    if (/^[-*+]\s+/.test(line)) {
       return new Paragraph({
         bullet: { level: 0 },
         spacing: { after: 80 },
         children: [
           new TextRun({
-            text: line.replace(/^-\s*/, ""),
+            text: line.replace(/^[-*+]\s+/, ""),
             size: 22,
           }),
         ],
       });
     }
 
-    // Normal text line
     return new Paragraph({
       spacing: { after: 120 },
       children: [

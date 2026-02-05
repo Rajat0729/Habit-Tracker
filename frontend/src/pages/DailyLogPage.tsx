@@ -18,7 +18,7 @@ import {
 import { saveLogsToLocal } from "../utils/localBackup.js";
 import type { DailyLog } from "../types/dailyLog.js";
 
-import { mergeLogs } from "../utils/mergeLogs.js";
+
 
 /* =======================
    THEME
@@ -84,34 +84,6 @@ export default function DailyLogPage() {
 
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-
-  //mereger
-  function handleMerge() {
-  const logsToMerge = weeklyLogs.filter((l) =>
-    selectedDates.includes(l.date)
-  );
-
-  if (logsToMerge.length < 2 || logsToMerge.length > 7) {
-    alert("Select between 2 and 7 logs to merge");
-    return;
-  }
-
-  const merged = mergeLogs(logsToMerge);
-
-  saveLogToIndexedDB(merged);
-  saveLogsToLocal([merged]);
-  saveDailyLog(merged).catch(() => {});
-
-  setWeeklyLogs((prev) =>
-    sortByDateDesc([...prev, merged])
-  );
-
-  setMergeMode(false);
-  setSelectedDates([]);
-  }
-
-  //
-
 
   /* =======================
      LOAD LOGS

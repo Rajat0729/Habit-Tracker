@@ -82,36 +82,36 @@ export default function DailyLogPage() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedPastDate, setSelectedPastDate] = useState("");
 
-  /* ===== MERGE STATE ===== */
   const [mergeMode, setMergeMode] = useState(false);
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
-  /* =======================
-     MERGE HANDLER
-  ======================= */
+  //mereger
   function handleMerge() {
-    const logsToMerge = weeklyLogs.filter((l) =>
-      selectedDates.includes(l.date)
-    );
+  const logsToMerge = weeklyLogs.filter((l) =>
+    selectedDates.includes(l.date)
+  );
 
-    if (logsToMerge.length < 2 || logsToMerge.length > 7) {
-      alert("Select between 2 and 7 logs to merge");
-      return;
-    }
-
-    const merged = mergeLogs(logsToMerge);
-
-    saveLogToIndexedDB(merged);
-    saveLogsToLocal([merged]);
-    saveDailyLog(merged).catch(() => {});
-
-    setWeeklyLogs((prev) =>
-      sortByDateDesc([...prev, merged])
-    );
-
-    setMergeMode(false);
-    setSelectedDates([]);
+  if (logsToMerge.length < 2 || logsToMerge.length > 7) {
+    alert("Select between 2 and 7 logs to merge");
+    return;
   }
+
+  const merged = mergeLogs(logsToMerge);
+
+  saveLogToIndexedDB(merged);
+  saveLogsToLocal([merged]);
+  saveDailyLog(merged).catch(() => {});
+
+  setWeeklyLogs((prev) =>
+    sortByDateDesc([...prev, merged])
+  );
+
+  setMergeMode(false);
+  setSelectedDates([]);
+  }
+
+  //
+
 
   /* =======================
      LOAD LOGS
@@ -309,6 +309,72 @@ export default function DailyLogPage() {
         </button>
       </aside>
 
+      {/* DATE PICKER MODAL */}
+      {showDatePicker && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+          }}
+        >
+          <div
+            style={{
+              background: theme.panel,
+              padding: 24,
+              borderRadius: 16,
+              width: 320,
+            }}
+          >
+            <h4>Select Past Date</h4>
+            <input
+              type="date"
+              max={new Date(Date.now() - 86400000)
+                .toISOString()
+                .slice(0, 10)}
+              value={selectedPastDate}
+              onChange={(e) => setSelectedPastDate(e.target.value)}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                padding: 10,
+                borderRadius: 10,
+              }}
+            />
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button
+                disabled={!selectedPastDate}
+                onClick={() => {
+                  addPreviousLog(selectedPastDate);
+                  setShowDatePicker(false);
+                  setSelectedPastDate("");
+                }}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                  background: theme.accent,
+                  border: "none",
+                }}
+              >
+                Continue
+              </button>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                style={{ flex: 1, padding: 10, borderRadius: 10 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* WEEKLY OVERVIEW */}
       <section style={{ padding: 20 }}>
         <div
@@ -322,90 +388,26 @@ export default function DailyLogPage() {
         >
           <h4>Weekly Overview</h4>
 
-          {/* MERGE CONTROLS */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <button
-              onClick={() => {
-                setMergeMode((p) => !p);
-                setSelectedDates([]);
-              }}
-              style={{
-                flex: 1,
-                padding: 8,
-                borderRadius: 10,
-                background: theme.panelSoft,
-                color: theme.text,
-                border: `1px solid ${theme.border}`,
-              }}
-            >
-              {mergeMode ? "Cancel Merge" : "Merge Logs"}
-            </button>
-
-            {mergeMode && (
-              <button
-                onClick={handleMerge}
-                disabled={
-                  selectedDates.length < 2 || selectedDates.length > 7
-                }
-                style={{
-                  flex: 1,
-                  padding: 8,
-                  borderRadius: 10,
-                  background: theme.accent,
-                  border: "none",
-                  opacity:
-                    selectedDates.length < 2 ||
-                    selectedDates.length > 7
-                      ? 0.5
-                      : 1,
-                }}
-              >
-                Merge Selected
-              </button>
-            )}
-          </div>
-
           {weeklyLogs.map((log) => (
             <div
               key={log.date}
+              onClick={() => openLog(log)}
               style={{
                 marginTop: 10,
                 padding: 12,
                 borderRadius: 12,
+                cursor: "pointer",
                 background:
                   activeLog?.date === log.date
                     ? theme.accentSoft
                     : theme.panelSoft,
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
               }}
             >
-              {mergeMode && (
-                <input
-                  type="checkbox"
-                  checked={selectedDates.includes(log.date)}
-                  onChange={(e) => {
-                    setSelectedDates((p) =>
-                      e.target.checked
-                        ? [...p, log.date]
-                        : p.filter((d) => d !== log.date)
-                    );
-                  }}
-                />
-              )}
-
-              <div
-                style={{ flex: 1, cursor: "pointer" }}
-                onClick={() => openLog(log)}
-              >
-                <div style={{ fontWeight: 600 }}>
-                  {log.isMerged ? "🧩 " : ""}
-                  {formatDate(log.date)}
-                </div>
-                <div style={{ fontSize: 12, color: theme.muted }}>
-                  {firstLine(log.workSummary)}
-                </div>
+              <div style={{ fontWeight: 600 }}>
+                {formatDate(log.date)}
+              </div>
+              <div style={{ fontSize: 12, color: theme.muted }}>
+                {firstLine(log.workSummary)}
               </div>
             </div>
           ))}
@@ -426,6 +428,7 @@ export default function DailyLogPage() {
               padding: 24,
             }}
           >
+            {/* HEADER */}
             <div
               style={{
                 display: "flex",
@@ -435,19 +438,58 @@ export default function DailyLogPage() {
             >
               <h3>Daily Log Editor — {formatDate(form.date)}</h3>
 
-              <button
-                onClick={handleDeleteLog}
-                style={{
-                  background: theme.danger,
-                  color: "#fff",
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Delete
-              </button>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowExportMenu((p) => !p)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.panelSoft,
+                    color: theme.text,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⬇ Export
+                </button>
+
+                {showExportMenu && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "110%",
+                      background: "#0f172a",
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: 10,
+                      overflow: "hidden",
+                      zIndex: 20,
+                      minWidth: 160,
+                    }}
+                  >
+                    {[
+                      ["JSON (Backup)", "json"],
+                      ["CSV", "csv"],
+                      ["Excel (.xlsx)", "excel"],
+                      ["Word (.docx)", "word"],
+                    ].map(([label, key]) => (
+                      <div
+                        key={key}
+                        onClick={() => handleExport(key as any)}
+                        style={{
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          color: theme.text,
+                          background: theme.panel,
+                        }}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {[

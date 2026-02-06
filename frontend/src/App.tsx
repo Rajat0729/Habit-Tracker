@@ -8,8 +8,6 @@ import './style/global.css'
 
 import DailyLogPage from "./pages/DailyLogPage.js";
 
-import { SpeedInsights } from "@vercel/speed-insights/next"
-
 function App() {
   return (
     <Routes>

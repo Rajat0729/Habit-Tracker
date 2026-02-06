@@ -6,6 +6,8 @@ import authRouter from "./routes/authRoutes.js";
 import habitRouter from "./routes/habitRoutes.js";
 import dailyLogRoutes from "./routes/dailyLogRoutes.js";
 
+import { SpeedInsights } from "@vercel/speed-insights/react"
+
 const app = express();
 
 /* =======================

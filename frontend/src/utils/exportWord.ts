@@ -10,6 +10,8 @@ import {
   VerticalAlign,
 } from "docx";
 import type { DailyLog } from "../types/dailyLog.js";
+import { formatDateToDDMMYYYY } from "../utils/dateFormatter.js";
+
 
 /* =======================
    MARKDOWN → PLAIN TEXT
@@ -42,6 +44,12 @@ function mdToPlainText(md?: string): string {
     .trim();
 }
 
+const sortLogsAscending = (logs: DailyLog[]) => {
+  return [...logs].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+};
+
 /* =======================
    EXPORT
 ======================= */
@@ -51,6 +59,10 @@ export async function exportLogsToWord(logs: DailyLog[]) {
     return;
   }
 
+  // ✅ 1. Sort logs in ascending order
+  const sortedLogs = sortLogsAscending(logs);
+
+  // ✅ 2. Create table
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
@@ -65,10 +77,11 @@ export async function exportLogsToWord(logs: DailyLog[]) {
       }),
 
       // DATA
-      ...logs.map((log) =>
+      ...sortedLogs.map((log) =>
         new TableRow({
           children: [
-            bodyCell(log.date),
+            // ✅ 3. Format date here
+            bodyCell(formatDateToDDMMYYYY(log.date)),
             richTextCell(log.workSummary),
             richTextCell((log.keyLearnings || []).join("\n")),
             richTextCell(log.issuesFaced),

@@ -94,6 +94,8 @@ export default function DailyLogPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   /* =======================
      LOAD LOGS
   ======================= */
@@ -530,12 +532,33 @@ export default function DailyLogPage() {
       )}
 
       {/* WEEKLY OVERVIEW */}
-      <section style={{ padding: "24px", borderRight: `1px solid ${theme.border}` }}>
-        <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          <h4 style={{ marginBottom: "16px", fontWeight: 600 }}>History</h4>
-          
-          <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
-            {weeklyLogs.map((log) => (
+      <section style={{ padding: "24px", borderRight: `1px solid ${theme.border}`, display: "flex", flexDirection: "column", height: "100vh", boxSizing: "border-box" }}>
+        
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "16px", flexShrink: 0 }}>
+          <h4 style={{ fontWeight: 600, margin: 0 }}>History</h4>
+          <span style={{ fontSize: "12px", color: theme.muted, fontWeight: 500 }}>
+            {weeklyLogs.length} Logs • {weeklyLogs.reduce((acc, val) => acc + (val.hoursWorked || 0), 0)}hrs
+          </span>
+        </div>
+
+        <div style={{ marginBottom: "16px", flexShrink: 0 }}>
+          <input 
+            type="text" 
+            placeholder="Search summaries, bugs..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ ...textInputBox, padding: "10px 14px", fontSize: "14px", height: "auto" }}
+          />
+        </div>
+        
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {weeklyLogs.filter(log => 
+              searchQuery === "" || 
+              log.date.includes(searchQuery) ||
+              (log.workSummary?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+              (log.issuesFaced?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+              (log.keyLearnings?.join(" ")?.toLowerCase() || "").includes(searchQuery.toLowerCase())
+            ).map((log) => (
               <div
                 key={log.date}
                 onClick={() => openLog(log)}
@@ -558,11 +581,10 @@ export default function DailyLogPage() {
               </div>
             ))}
           </div>
-        </div>
       </section>
 
       {/* EDITOR */}
-      <section style={{ padding: "32px", overflowY: "auto", position: "relative" }}>
+      <section style={{ padding: "32px", overflowY: "auto", position: "relative", height: "100vh", boxSizing: "border-box" }}>
         {!form ? (
           <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: theme.muted }}>
             <p>Select a log from history or add a new one.</p>

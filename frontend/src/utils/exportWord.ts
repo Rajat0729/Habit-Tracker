@@ -58,32 +58,33 @@ export async function exportLogsToWord(logs: DailyLog[]) {
 
   const sortedLogs = sortLogsAscending(logs);
 
- 
+  const hasLearnings = sortedLogs.some((l) => l.keyLearnings && l.keyLearnings.some((k) => k.trim() !== ""));
+  const hasIssues = sortedLogs.some((l) => l.issuesFaced && l.issuesFaced.trim() !== "");
+
+  const headerChildren = [
+    headerCell("Date"),
+    headerCell("Work Summary"),
+  ];
+  if (hasLearnings) headerChildren.push(headerCell("Key Learnings"));
+  if (hasIssues) headerChildren.push(headerCell("Issues Faced"));
+
+  const tableRows = [
+    new TableRow({ children: headerChildren }),
+    ...sortedLogs.map((log) => {
+      const bodyChildren = [
+        bodyCell(formatDateToDDMMYYYY(log.date)),
+        richTextCell(log.workSummary),
+      ];
+      if (hasLearnings) bodyChildren.push(richTextCell((log.keyLearnings || []).join("\n")));
+      if (hasIssues) bodyChildren.push(richTextCell(log.issuesFaced));
+      
+      return new TableRow({ children: bodyChildren });
+    }),
+  ];
+
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      
-      new TableRow({
-        children: [
-          headerCell("Date"),
-          headerCell("Work Summary"),
-          headerCell("Key Learnings"),
-          headerCell("Issues Faced"),
-        ],
-      }),
-
-    
-      ...sortedLogs.map((log) =>
-        new TableRow({
-          children: [
-            bodyCell(formatDateToDDMMYYYY(log.date)),
-            richTextCell(log.workSummary),
-            richTextCell((log.keyLearnings || []).join("\n")),
-            richTextCell(log.issuesFaced),
-          ],
-        })
-      ),
-    ],
+    rows: tableRows,
   });
 
   const doc = new Document({

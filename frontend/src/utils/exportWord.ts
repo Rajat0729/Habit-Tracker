@@ -13,9 +13,6 @@ import type { DailyLog } from "../types/dailyLog.js";
 import { formatDateToDDMMYYYY } from "../utils/dateFormatter.js";
 
 
-/* =======================
-   MARKDOWN → PLAIN TEXT
-======================= */
 function mdToPlainText(md?: string): string {
   if (!md) return "";
 
@@ -59,14 +56,13 @@ export async function exportLogsToWord(logs: DailyLog[]) {
     return;
   }
 
-  // ✅ 1. Sort logs in ascending order
   const sortedLogs = sortLogsAscending(logs);
 
-  // ✅ 2. Create table
+ 
   const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      // HEADER
+      
       new TableRow({
         children: [
           headerCell("Date"),
@@ -76,11 +72,10 @@ export async function exportLogsToWord(logs: DailyLog[]) {
         ],
       }),
 
-      // DATA
+    
       ...sortedLogs.map((log) =>
         new TableRow({
           children: [
-            // ✅ 3. Format date here
             bodyCell(formatDateToDDMMYYYY(log.date)),
             richTextCell(log.workSummary),
             richTextCell((log.keyLearnings || []).join("\n")),
@@ -136,12 +131,7 @@ function headerCell(text: string) {
   });
 }
 
-/**
- * Clean Word-friendly cell:
- * ✔ Markdown removed
- * ✔ Bullets preserved
- * ✔ Proper spacing
- */
+
 function richTextCell(text?: string) {
   if (!text) return bodyCell("");
 
@@ -153,7 +143,7 @@ function richTextCell(text?: string) {
     .filter(Boolean);
 
   const paragraphs = lines.map((line) => {
-    // Bullet detection (-, *, +)
+    
     if (/^[-*+]\s+/.test(line)) {
       return new Paragraph({
         bullet: { level: 0 },
